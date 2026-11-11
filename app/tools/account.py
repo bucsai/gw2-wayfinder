@@ -1,0 +1,218 @@
+from collections import Counter
+from urllib.parse import quote
+
+from pydantic_ai import RunContext
+
+from app.tools import STATIC_TTL, Deps, coins, item_names, tool
+
+
+async def _get(ctx: RunContext[Deps], path: str, params: dict | None = None):
+    return await ctx.deps.gw2.get(path, key=ctx.deps.key, params=params)
+
+
+@tool("account")
+async def account_overview(ctx: RunContext[Deps]) -> dict:
+    """Get an overview of the player's account: age, expansions, fractal level, WvW rank, achievement points, guilds."""
+    account = await _get(ctx, "/account")
+    session = ctx.deps.session
+    overview = {
+        "account": session.pseudo.alias(account["name"], "account"),
+        "created": account.get("created"),
+        "played_hours": round(account.get("age", 0) / 3600),
+        "access": account.get("access", []),
+        "commander": account.get("commander"),
+        "fractal_level": account.get("fractal_level"),
+        "wvw_rank": (account.get("wvw") or {}).get("rank", account.get("wvw_rank")),
+        "daily_ap": account.get("daily_ap"),
+        "monthly_ap": account.get("monthly_ap"),
+        "guilds": [session.guilds[g] for g in account.get("guilds", []) if g in session.guilds],
+        "key_permissions": sorted(session.permissions),
+    }
+    if "progression" in session.permissions:
+        mastery = await _get(ctx, "/account/mastery/points")
+        overview["mastery_points"] = mastery.get("totals", [])
+    return overview
+
+
+@tool("account", "characters")
+async def list_characters(ctx: RunContext[Deps]) -> dict:
+    """List the player's characters with profession, race, level and crafting."""
+    characters = await _get(ctx, "/characters", {"ids": "all"})
+    pseudo = ctx.deps.session.pseudo
+    return {
+        "characters": [
+            {
+                "character": pseudo.alias(c["name"], "character"),
+                "profession": c["profession"],
+                "race": c["race"],
+                "level": c["level"],
+                "played_hours": round(c.get("age", 0) / 3600),
+                "created": c.get("created"),
+                "deaths": c.get("deaths"),
+                "crafting": [f"{d['discipline']} {d['rating']}" for d in c.get("crafting", [])],
+            }
+            for c in characters
+        ]
+    }
+
+
+@tool("account", "characters")
+async def character_details(ctx: RunContext[Deps], character: str) -> dict:
+    """Get a character's equipped gear and active build. character is the alias, e.g. Character_A."""
+    name = ctx.deps.session.pseudo.real(character)
+    if name is None:
+        return {"error": f"Unknown character {character!r}. Use list_characters."}
+    gw2 = ctx.deps.gw2
+    c = await _get(ctx, f"/characters/{quote(name)}")
+    tab = c.get("active_equipment_tab")
+    equipment = [e for e in c.get("equipment", []) if not e.get("tabs") or tab in e["tabs"]]
+    upgrade_ids = [u for e in equipment for u in e.get("upgrades", []) + e.get("infusions", [])]
+    names = await item_names(gw2, [e["id"] for e in equipment] + upgrade_ids)
+
+    result = {
+        "character": character,
+        "profession": c["profession"],
+        "level": c["level"],
+        "equipment": [
+            {
+                "slot": e["slot"],
+                "item": names.get(e["id"], e["id"]),
+                "upgrades": [names.get(u, u) for u in e.get("upgrades", [])],
+                "infusions": [names.get(u, u) for u in e.get("infusions", [])],
+            }
+            for e in equipment
+        ],
+    }
+    build = next((t["build"] for t in c.get("build_tabs", []) if t.get("is_active")), None)
+    if build:
+        specs = [s for s in build.get("specializations", []) if s.get("id")]
+        spec_names = await gw2.get_many("/specializations", [s["id"] for s in specs], STATIC_TTL)
+        traits = await gw2.get_many("/traits", [t for s in specs for t in s.get("traits", []) if t], STATIC_TTL)
+        result["build"] = [
+            {
+                "specialization": spec_names.get(s["id"], {}).get("name", s["id"]),
+                "traits": [traits.get(t, {}).get("name", t) for t in s.get("traits", []) if t],
+            }
+            for s in specs
+        ]
+    return result
+
+
+@tool("account", "wallet")
+async def wallet(ctx: RunContext[Deps]) -> dict:
+    """Get the player's currencies (gold, karma, laurels and so on)."""
+    entries = await _get(ctx, "/account/wallet")
+    currencies = await ctx.deps.gw2.get_many("/currencies", [e["id"] for e in entries], STATIC_TTL)
+    return {
+        "wallet": [
+            {
+                "currency": currencies.get(e["id"], {}).get("name", e["id"]),
+                "amount": coins(e["value"]) if e["id"] == 1 else e["value"],
+            }
+            for e in entries
+        ]
+    }
+
+
+@tool("account", "inventories")
+async def find_in_account(ctx: RunContext[Deps], name_contains: str = "", item_ids: list[int] | None = None) -> dict:
+    """Find items the player owns in the bank, material storage, shared inventory and character bags.
+
+    Match by part of the item name, by item ids, or both.
+    """
+    counts: Counter = Counter()
+
+    def add(slots, location):
+        for slot in slots or []:
+            if slot:
+                counts[(slot["id"], location)] += slot.get("count", 1)
+
+    add(await _get(ctx, "/account/bank"), "Bank")
+    add(await _get(ctx, "/account/materials"), "Material storage")
+    add(await _get(ctx, "/account/inventory"), "Shared inventory")
+    if "characters" in ctx.deps.session.permissions:
+        pseudo = ctx.deps.session.pseudo
+        for c in await _get(ctx, "/characters", {"ids": "all"}):
+            for bag in c.get("bags") or []:
+                add((bag or {}).get("inventory"), pseudo.alias(c["name"], "character"))
+
+    names = await item_names(ctx.deps.gw2, {id_ for id_, _ in counts})
+    needle = name_contains.strip().lower()
+    matches = [
+        {"item": names.get(id_, id_), "id": id_, "location": location, "count": count}
+        for (id_, location), count in counts.items()
+        if (item_ids and id_ in item_ids) or (needle and needle in names.get(id_, "").lower())
+    ]
+    return {"matches": sorted(matches, key=lambda m: -m["count"])[:50], "total_matches": len(matches)}
+
+
+@tool("account", "tradingpost")
+async def trading_post_orders(ctx: RunContext[Deps]) -> dict:
+    """Get the player's current Trading Post buy orders, listings and items waiting for pickup."""
+    buys = await _get(ctx, "/commerce/transactions/current/buys")
+    sells = await _get(ctx, "/commerce/transactions/current/sells")
+    delivery = await _get(ctx, "/commerce/delivery")
+    names = await item_names(ctx.deps.gw2, [t["item_id"] for t in buys + sells] + [i["id"] for i in delivery["items"]])
+
+    def orders(transactions):
+        return [
+            {"item": names.get(t["item_id"], t["item_id"]), "price": coins(t["price"]), "quantity": t["quantity"]}
+            for t in transactions
+        ]
+
+    return {
+        "buy_orders": orders(buys),
+        "listings": orders(sells),
+        "pickup_coins": coins(delivery["coins"]),
+        "pickup_items": [{"item": names.get(i["id"], i["id"]), "count": i["count"]} for i in delivery["items"]],
+    }
+
+
+@tool("account", "progression")
+async def achievement_progress(ctx: RunContext[Deps], ids: list[int]) -> dict:
+    """Get the player's progress on achievements by achievement id."""
+    progress = {a["id"]: a for a in await _get(ctx, "/account/achievements", {"ids": ",".join(map(str, ids))})}
+    info = await ctx.deps.gw2.get_many("/achievements", ids, STATIC_TTL)
+    return {
+        "achievements": [
+            {
+                "id": id_,
+                "name": info.get(id_, {}).get("name"),
+                "done": progress.get(id_, {}).get("done", False),
+                "current": progress.get(id_, {}).get("current", 0),
+                "max": progress.get(id_, {}).get("max"),
+                "repeated": progress.get(id_, {}).get("repeated"),
+            }
+            for id_ in ids
+        ]
+    }
+
+
+@tool("account", "progression")
+async def wizards_vault(ctx: RunContext[Deps]) -> dict:
+    """Get the player's Wizard's Vault daily, weekly and special objectives with progress."""
+    result = {}
+    for period in ("daily", "weekly", "special"):
+        data = await _get(ctx, f"/account/wizardsvault/{period}")
+        result[period] = [
+            {
+                "objective": o["title"],
+                "track": o.get("track"),
+                "acclaim": o.get("acclaim"),
+                "progress": f"{o.get('progress_current', 0)}/{o.get('progress_complete', 0)}",
+                "claimed": o.get("claimed"),
+            }
+            for o in data.get("objectives", [])
+        ]
+    return result
+
+
+@tool("account", "progression")
+async def weekly_clears(ctx: RunContext[Deps]) -> dict:
+    """Get what the player has completed since the last reset: raid encounters, dungeon paths, world bosses, map chests."""
+    return {
+        "raid_encounters": await _get(ctx, "/account/raids"),
+        "dungeon_paths": await _get(ctx, "/account/dungeons"),
+        "world_bosses": await _get(ctx, "/account/worldbosses"),
+        "map_chests": await _get(ctx, "/account/mapchests"),
+    }
