@@ -1,0 +1,70 @@
+# GW2 Wayfinder
+
+A web-based Guild Wars 2 assistant at [gw2wayfinder.com](https://gw2wayfinder.com). It answers questions about the game and about your account, using the official GW2 API and the official GW2 Wiki.
+
+## Privacy
+
+- You need a read-only GW2 API key. Create one at [account.arena.net/applications](https://account.arena.net/applications).
+- The key stays in your browser. It is kept for the browser session, or on your device if you choose "Remember my key".
+- The server keeps chats in memory for up to one hour and never writes account data to disk.
+- Account, character and guild names are replaced with aliases (such as `Character_A`) before anything is sent to the AI model. Real names are put back into the answer you see.
+- The API key is never sent to the AI model.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Browser -- key + message --> Server
+    Server -- aliases only --> Model[Claude Haiku]
+    Model -- tool calls --> Server
+    Server -- key --> GW2[GW2 API]
+    Server --> Wiki[GW2 Wiki]
+    Server -- answer with real names --> Browser
+    Server --- Cache[(SQLite cache<br>public data only)]
+```
+
+The agent is built with [Pydantic AI](https://ai.pydantic.dev). It has tools for:
+
+- Account: overview, characters, character gear and build, wallet, item search across storage, Trading Post orders, achievements, Wizard's Vault, weekly clears
+- Game data: items, Trading Post prices, recipes, achievements
+- Wiki: search and page reading
+
+Tools that need a permission the key lacks are hidden from the agent.
+
+Wiki results are cached without expiry. Wiki requests run one at a time, at most one per second, and stop for a while when the wiki is busy.
+
+## Running locally
+
+Requirements: [uv](https://docs.astral.sh/uv/) and an Anthropic API key.
+
+```sh
+uv sync
+export ANTHROPIC_API_KEY=...
+uv run uvicorn app.main:app --reload
+```
+
+Open http://127.0.0.1:8000.
+
+Run the tests with `uv run pytest`.
+
+## Running with Docker
+
+Copy `.env.example` to `.env` and fill in the values.
+
+```sh
+docker compose up -d --build                  # app only, on 127.0.0.1:8000
+docker compose --profile tunnel up -d --build # app and Cloudflare Tunnel
+```
+
+The cache is stored in the `wayfinder-data` volume, so it survives restarts and rebuilds. `docker compose down -v` deletes it.
+
+For the tunnel, create a Cloudflare Tunnel, put its token in `.env`, and route the public hostname to `http://app:8000`.
+
+## Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | | Anthropic API key |
+| `CLOUDFLARE_TUNNEL_TOKEN` | | Cloudflare Tunnel token, only for the `tunnel` profile |
+| `WAYFINDER_MODEL` | `anthropic:claude-haiku-5-5` | Pydantic AI model name |
+| `WAYFINDER_DATA_DIR` | `data` (`/data` in Docker) | Directory of the SQLite cache |
