@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    volumes:
+      - wayfinder-data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.7
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  wayfinder-data:
