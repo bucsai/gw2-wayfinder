@@ -29,7 +29,7 @@ body {
   font: 16px/1.5 system-ui, sans-serif;
 }
 
-header, main {
+header, main, footer {
   max-width: 760px;
   margin: 0 auto;
   padding: 0 16px;
@@ -42,6 +42,14 @@ header {
 }
 
 h1 { font-size: 1.3rem; }
+
+footer {
+  margin-top: 32px;
+  padding-bottom: 16px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 a { color: var(--accent); }
 
 form#key-form, .message {
