@@ -2,6 +2,7 @@
 
 import functools
 import json
+import logging
 import re
 from dataclasses import dataclass
 
@@ -11,6 +12,7 @@ from app.gw2 import GW2Client, GW2Error
 from app.sessions import Session
 from app.wiki import WikiClient, WikiUnavailable
 
+log = logging.getLogger("wayfinder")
 STATIC_TTL = 7 * 24 * 3600
 PRICE_TTL = 300
 
@@ -39,6 +41,10 @@ def tool(*permissions: str):
                 result = {"error": str(e)}
             except WikiUnavailable:
                 result = {"error": "The wiki is unavailable right now. Do not retry."}
+            except Exception as e:
+                # Log the type only. The data can contain player names.
+                log.error("Tool %s failed: %s", func.__name__, type(e).__name__)
+                result = {"error": "This tool failed unexpectedly."}
             return ctx.deps.session.pseudo.scrub(json.dumps(result, ensure_ascii=False))
 
         async def prepare(ctx: RunContext[Deps], tool_def):

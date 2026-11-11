@@ -64,8 +64,9 @@ async def character_details(ctx: RunContext[Deps], character: str) -> dict:
         return {"error": f"Unknown character {character!r}. Use list_characters."}
     gw2 = ctx.deps.gw2
     c = await _get(ctx, f"/characters/{quote(name)}")
-    tab = c.get("active_equipment_tab")
-    equipment = [e for e in c.get("equipment", []) if not e.get("tabs") or tab in e["tabs"]]
+    # The active equipment tab lists every slot, including Legendary Armory items.
+    tab = next((t for t in c.get("equipment_tabs", []) if t.get("is_active")), {})
+    equipment = [e for e in tab.get("equipment", []) if e.get("slot")]
     upgrade_ids = [u for e in equipment for u in e.get("upgrades", []) + e.get("infusions", [])]
     names = await item_names(gw2, [e["id"] for e in equipment] + upgrade_ids)
 

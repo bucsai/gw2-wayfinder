@@ -23,7 +23,7 @@ CHARACTER = {
     "race": "Sylvari",
     "level": 80,
     "guild": GUILD_ID,
-    "equipment": [{"id": 1, "slot": "Helm"}],
+    "equipment_tabs": [{"is_active": True, "equipment": [{"id": 1, "slot": "Helm"}]}],
     "bags": [{"inventory": [{"id": 2, "count": 3}, None]}],
 }
 RESPONSES = {
