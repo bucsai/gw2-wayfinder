@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GW2 Wayfinder</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/marked.min.js" defer></script>
+  <script src="vendor/purify.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>GW2 Wayfinder</h1>
+    <button id="forget" class="link" hidden>Forget key</button>
+  </header>
+
+  <main>
+    <form id="key-form">
+      <p>Wayfinder answers questions about Guild Wars 2 and your account. It needs a read-only GW2 API key.</p>
+      <p>Create one at <a href="https://account.arena.net/applications" target="_blank" rel="noopener">account.arena.net/applications</a>.
+        Select the permissions you want Wayfinder to use, for example account, characters, inventories, wallet and progression.</p>
+      <label for="key">API key</label>
+      <input id="key" type="password" autocomplete="off" required>
+      <label class="check"><input id="remember" type="checkbox"> Remember my key on this device</label>
+      <button type="submit">Start</button>
+      <p class="note">Your key stays in your browser and is sent only to this server. Account and character names are replaced with aliases before they reach the AI model.</p>
+      <p id="key-error" class="error" hidden></p>
+    </form>
+
+    <section id="chat" hidden>
+      <div id="messages"></div>
+      <p id="status" class="note" hidden></p>
+      <form id="chat-form">
+        <textarea id="message" rows="2" maxlength="2000" placeholder="Ask about the game or your account" required></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
