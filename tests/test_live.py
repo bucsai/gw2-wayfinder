@@ -57,7 +57,7 @@ async def test_all_tools_with_real_key():
             [e async for e in agent_module.run(deps, "test")]
 
     results = {
-        p.tool_name: json.loads(p.content)
+        p.tool_name: json.loads(str(p.content))
         for m in session.history
         for p in m.parts
         if isinstance(p, ToolReturnPart)

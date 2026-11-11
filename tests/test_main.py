@@ -1,6 +1,5 @@
 import json
 
-import httpx
 import pytest
 import respx
 from fastapi.testclient import TestClient
@@ -34,7 +33,9 @@ def test_session_and_chat_restore_real_names(client):
     session_id = response.json()["session_id"]
 
     with agent_module.agent.override(model=FunctionModel(stream_function=reply)):
-        response = client.post("/api/chat", headers={"X-GW2-Key": KEY}, json={"session_id": session_id, "message": "hi"})
+        response = client.post(
+            "/api/chat", headers={"X-GW2-Key": KEY}, json={"session_id": session_id, "message": "hi"}
+        )
     events = [json.loads(line) for line in response.text.splitlines()]
     assert events == [{"text": "Hello Zoe Lightfoot\n"}, {"text": "of Knights of Ascalon"}]
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
@@ -42,7 +43,9 @@ def test_session_and_chat_restore_real_names(client):
 
 def test_chat_requires_matching_key(client):
     session_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
-    response = client.post("/api/chat", headers={"X-GW2-Key": "other"}, json={"session_id": session_id, "message": "hi"})
+    response = client.post(
+        "/api/chat", headers={"X-GW2-Key": "other"}, json={"session_id": session_id, "message": "hi"}
+    )
     assert response.status_code == 401
     assert client.post("/api/chat", json={"session_id": session_id, "message": "hi"}).status_code == 422
 

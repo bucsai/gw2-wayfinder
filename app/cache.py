@@ -14,9 +14,7 @@ class Cache:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.execute(
-            "CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires_at REAL)"
-        )
+        self.db.execute("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires_at REAL)")
 
     def get(self, key: str):
         """Return the cached value, or MISS. A cached None is a valid value."""

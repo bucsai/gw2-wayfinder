@@ -61,7 +61,7 @@ async def create_session(request: Request, x_gw2_key: str = Header()):
     try:
         session = await load_session(request.app.state.gw2, x_gw2_key.strip())
     except GW2Error:
-        raise HTTPException(401, "The API key is invalid or lacks the account permission.")
+        raise HTTPException(401, "The API key is invalid or lacks the account permission.") from None
     session_id = request.app.state.sessions.add(session)
     return {"session_id": session_id, "permissions": sorted(session.permissions)}
 

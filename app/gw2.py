@@ -24,15 +24,10 @@ class GW2Client:
         headers = {"X-Schema-Version": SCHEMA_VERSION}
         if key:
             headers["Authorization"] = f"Bearer {key}"
-        for attempt in range(2):
-            try:
-                response = await self.http.get(f"{BASE_URL}{path}", params=params, headers=headers)
-            except httpx.HTTPError as e:
-                raise GW2Error(f"GW2 API request failed: {type(e).__name__}") from e
-            if (response.status_code == 429 or response.status_code >= 500) and attempt == 0:
-                await asyncio.sleep(1)
-                continue
-            break
+        response = await self._send(path, params, headers)
+        if response.status_code == 429 or response.status_code >= 500:
+            await asyncio.sleep(1)
+            response = await self._send(path, params, headers)
         if response.status_code in (401, 403):
             raise GW2Error("The API key is invalid or lacks the required permission.")
         if response.status_code == 404:
@@ -40,6 +35,12 @@ class GW2Client:
         if response.status_code >= 400:
             raise GW2Error(f"GW2 API returned HTTP {response.status_code}.")
         return response.json()
+
+    async def _send(self, path: str, params: dict | None, headers: dict) -> httpx.Response:
+        try:
+            return await self.http.get(f"{BASE_URL}{path}", params=params, headers=headers)
+        except httpx.HTTPError as e:
+            raise GW2Error(f"GW2 API request failed: {type(e).__name__}") from e
 
     async def get_cached(self, path: str, ttl: float, params: dict | None = None):
         """GET a public endpoint through the cache."""

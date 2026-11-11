@@ -210,7 +210,7 @@ async def wizards_vault(ctx: RunContext[Deps]) -> dict:
 
 @tool("account", "progression")
 async def weekly_clears(ctx: RunContext[Deps]) -> dict:
-    """Get what the player has completed since the last reset: raid encounters, dungeon paths, world bosses, map chests."""
+    """Get what the player completed since the last reset: raids, dungeons, world bosses, map chests."""
     return {
         "raid_encounters": await _get(ctx, "/account/raids"),
         "dungeon_paths": await _get(ctx, "/account/dungeons"),

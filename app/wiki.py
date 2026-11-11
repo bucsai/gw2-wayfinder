@@ -11,6 +11,7 @@ import re
 import time
 from collections.abc import Callable
 from html.parser import HTMLParser
+from typing import Any
 
 import httpx
 
@@ -46,7 +47,7 @@ class WikiClient:
         params = {"action": "parse", "page": title, "prop": "text|wikitext", "redirects": "1"}
         return await self._cached(f"wiki:page:{title}", params, _parse_page, on_fetch)
 
-    async def _cached(self, key: str, params: dict, parse: Callable, on_fetch: Callable[[], None] | None):
+    async def _cached(self, key: str, params: dict, parse: Callable, on_fetch: Callable[[], None] | None) -> Any:
         value = self.cache.get(key)
         if value is not MISS:
             return value

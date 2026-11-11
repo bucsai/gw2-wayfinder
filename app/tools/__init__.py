@@ -26,7 +26,7 @@ class Deps:
     wiki_fetches: int = 0  # in this run
 
 
-TOOLS: list[Tool] = []
+TOOLS: list[Tool[Deps]] = []
 
 
 def tool(*permissions: str):

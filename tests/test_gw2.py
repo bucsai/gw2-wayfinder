@@ -26,9 +26,7 @@ async def test_get_sends_key_and_maps_errors(client):
 @respx.mock
 async def test_get_retries_once(client, monkeypatch):
     monkeypatch.setattr("asyncio.sleep", _no_sleep)
-    route = respx.get(f"{BASE_URL}/build").mock(
-        side_effect=[httpx.Response(503), httpx.Response(200, json={"id": 1})]
-    )
+    route = respx.get(f"{BASE_URL}/build").mock(side_effect=[httpx.Response(503), httpx.Response(200, json={"id": 1})])
     assert await client.get("/build") == {"id": 1}
     assert route.call_count == 2
 

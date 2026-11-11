@@ -21,9 +21,7 @@ def test_aliases_are_stable():
 def test_scrub_replaces_names_case_insensitive():
     p = make()
     text = "wanderer.1234 aka Wanderer plays ZOE LIGHTFOOT and Bob in Knights of Ascalon. Bobby stays."
-    assert p.scrub(text) == (
-        "Account_1 aka Account_1 plays Character_A and Character_B in Guild_A. Bobby stays."
-    )
+    assert p.scrub(text) == "Account_1 aka Account_1 plays Character_A and Character_B in Guild_A. Bobby stays."
 
 
 def test_scrub_redacts_keys_and_uuids():
