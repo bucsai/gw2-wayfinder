@@ -45,7 +45,14 @@ uv run uvicorn app.main:app --reload
 
 Open http://127.0.0.1:8000.
 
-Run the tests with `uv run pytest`.
+Checks:
+
+```sh
+uv run pytest                                # tests
+uv run --env-file .env pytest tests/test_live.py  # tools against the real GW2 API, needs GW2_TEST_API_KEY
+uv run ruff check && uv run ruff format      # lint and format
+uv run pyright                               # type check
+```
 
 ## Running with Docker
 
