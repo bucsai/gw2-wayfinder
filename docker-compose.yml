@@ -1,7 +1,8 @@
 services:
   app:
     build: .
-    env_file: .env
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     volumes:
       - wayfinder-data:/data
     ports:

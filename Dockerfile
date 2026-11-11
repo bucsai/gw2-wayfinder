@@ -6,7 +6,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH=/opt/venv/bin:$PATH \
-    WAYFINDER_DATA_DIR=/data
+    WAYFINDER_DATA_DIR=/data \
+    PYDANTIC_AI_NO_BANNER=1
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
