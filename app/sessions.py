@@ -25,6 +25,7 @@ class Session:
     guilds: dict[str, str]  # guild id -> real name
     history: list = field(default_factory=list)
     wiki_fetches: int = 0
+    busy: bool = False
     last_used: float = field(default_factory=time.time)
 
 

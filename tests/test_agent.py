@@ -41,6 +41,8 @@ RESPONSES = {
 
 
 def gw2_api(request: httpx.Request) -> httpx.Response:
+    if request.headers.get("Authorization") not in (None, f"Bearer {KEY}"):
+        return httpx.Response(401, json={"text": "Invalid access token"})
     path = request.url.path
     if path == "/v2/characters" and request.url.params.get("ids") == "all":
         path = "/v2/characters/all"
