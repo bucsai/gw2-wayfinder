@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy - GW2 Wayfinder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1><a href="/" class="home">GW2 Wayfinder</a></h1>
+  </header>
+
+  <main class="page">
+    <h2>Privacy notice</h2>
+    <p class="note">Last updated: November 11, 2026</p>
+
+    <p>GW2 Wayfinder is a non-commercial fan project. There are no user accounts, no cookies set by this site, no
+      analytics and no ads.</p>
+
+    <h3>Your GW2 API key</h3>
+    <ul>
+      <li>Your key is kept in your browser: for the browser session, or on your device if you select "Remember my key".
+        "Forget key" removes it.</li>
+      <li>Your browser sends the key to this server with each request. The server uses it only to read your account
+        data from the official GW2 API run by ArenaNet.</li>
+      <li>The server does not store the key. It keeps a one-way hash of it in memory to link your requests to your chat
+        and to limit how many messages can be sent.</li>
+      <li>The key is never sent to the AI model. You can delete the key at any time at
+        <a href="https://account.arena.net/applications" target="_blank" rel="noopener">account.arena.net/applications</a>.</li>
+    </ul>
+
+    <h3>Your account data and messages</h3>
+    <ul>
+      <li>Account data is read from the GW2 API only when a question needs it.</li>
+      <li>Before anything is sent to the AI model, account, character and guild names are replaced with aliases such as
+        Character_A. The real names are put back into the answer in your browser.</li>
+      <li>Your messages and the account data the assistant looks up, with names replaced, are sent to Anthropic, which
+        provides the AI model (Claude). Anthropic processes them under its
+        <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">privacy policy</a>.</li>
+      <li>Only names known from your account are replaced. Do not type other personal information into the chat.</li>
+      <li>Your chat is kept in the server's memory and deleted after one hour of inactivity or when the server restarts.
+        It is never written to disk.</li>
+    </ul>
+
+    <h3>Other data</h3>
+    <ul>
+      <li>The server stores public game data, such as items, prices and wiki pages, in a cache. The cache contains no
+        account data.</li>
+      <li>Wiki searches send only game terms, such as item names, to the
+        <a href="https://wiki.guildwars2.com" target="_blank" rel="noopener">Guild Wars 2 Wiki</a>.</li>
+      <li>The server does not log IP addresses or messages. Error logs contain only the type of error.</li>
+      <li>The site is served through Cloudflare, which processes your IP address to deliver and protect the site and may
+        set cookies needed for security. See the
+        <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare privacy policy</a>.</li>
+    </ul>
+
+    <h3>Contact</h3>
+    <p>Questions about privacy can be raised on
+      <a href="https://github.com/bucsai/gw2-wayfinder/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+  </main>
+</body>
+</html>

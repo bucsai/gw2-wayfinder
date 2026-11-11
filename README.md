@@ -12,6 +12,9 @@ A web-based Guild Wars 2 assistant at [gw2wayfinder.com](https://gw2wayfinder.co
 - The server keeps chats in memory for up to one hour and never writes account data to disk.
 - Account, character and guild names are replaced with aliases (such as `Character_A`) before anything is sent to the AI model. Real names are put back into the answer you see.
 - The API key is never sent to the AI model.
+- Messages, with names replaced, are processed by Anthropic. The site is served through Cloudflare.
+
+The full privacy notice is at [gw2wayfinder.com/privacy.html](https://gw2wayfinder.com/privacy.html) ([source](static/privacy.html)).
 
 ## How it works
 

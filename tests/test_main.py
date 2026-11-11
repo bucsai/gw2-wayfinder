@@ -57,3 +57,4 @@ def test_invalid_key_is_rejected(client):
 
 def test_static_page(client):
     assert "GW2 Wayfinder" in client.get("/").text
+    assert "Privacy notice" in client.get("/privacy.html").text

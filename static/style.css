@@ -51,6 +51,9 @@ footer {
 }
 
 a { color: var(--accent); }
+a.home { color: inherit; text-decoration: none; }
+.page { padding-bottom: 32px; }
+.page h3 { margin-top: 24px; }
 
 form#key-form, .message {
   background: var(--card);
