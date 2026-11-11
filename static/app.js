@@ -128,10 +128,10 @@ $("key-form").addEventListener("submit", async (e) => {
 
 $("chat-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const button = $("chat-form").querySelector("button");
   const message = $("message").value.trim();
-  if (!message) return;
+  if (!message || button.disabled) return;
   $("message").value = "";
-  const button = e.submitter;
   button.disabled = true;
   try {
     await send(message);
