@@ -1,5 +1,37 @@
-// Light/dark theme. Follows the system theme until the user picks one; the choice is kept in localStorage.
+// Shared by all pages: the stored key and chat session, the header buttons and the light/dark theme.
 // Loaded without defer so data-theme is set before the page paints.
+
+const KEY_NAME = "gw2-key";
+const SESSION_NAME = "gw2-session";
+
+function storage(name) {
+  try { return window[name]; } catch { return null; }
+}
+
+function loadKey() {
+  return storage("localStorage")?.getItem(KEY_NAME) || storage("sessionStorage")?.getItem(KEY_NAME);
+}
+
+function saveKey(key, remember) {
+  try { (remember ? localStorage : sessionStorage).setItem(KEY_NAME, key); } catch {}
+}
+
+// The chat session id is kept per tab, so the chat can be loaded again after a reload or navigation.
+function loadSessionId() {
+  return storage("sessionStorage")?.getItem(SESSION_NAME);
+}
+
+function saveSessionId(id) {
+  try { sessionStorage.setItem(SESSION_NAME, id); } catch {}
+}
+
+function forgetKey() {
+  try { localStorage.removeItem(KEY_NAME); } catch {}
+  try { sessionStorage.removeItem(KEY_NAME); } catch {}
+  try { sessionStorage.removeItem(SESSION_NAME); } catch {}
+}
+
+// Theme: follows the system theme until the user picks one; the choice is kept in localStorage.
 (() => {
   const root = document.documentElement;
   const system = matchMedia("(prefers-color-scheme: dark)");
@@ -42,3 +74,12 @@
   });
   system.addEventListener("change", sync);
 })();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const forget = document.getElementById("forget");
+  forget.hidden = !loadKey();
+  forget.addEventListener("click", () => {
+    forgetKey();
+    location.href = "/";
+  });
+});

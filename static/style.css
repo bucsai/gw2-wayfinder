@@ -32,6 +32,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
+/* Reserve the scrollbar space on every page so short and long pages line up. */
+html { scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   min-height: 100vh;

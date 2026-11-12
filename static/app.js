@@ -1,26 +1,7 @@
+// Key and session storage helpers live in site.js.
 const $ = (id) => document.getElementById(id);
-const KEY_NAME = "gw2-key";
 let apiKey = null;
 let sessionId = null;
-
-function storage(name) {
-  try { return window[name]; } catch { return null; }
-}
-
-function loadKey() {
-  return storage("localStorage")?.getItem(KEY_NAME) || storage("sessionStorage")?.getItem(KEY_NAME);
-}
-
-function saveKey(key, remember) {
-  try {
-    (remember ? localStorage : sessionStorage).setItem(KEY_NAME, key);
-  } catch {}
-}
-
-function forgetKey() {
-  try { localStorage.removeItem(KEY_NAME); } catch {}
-  try { sessionStorage.removeItem(KEY_NAME); } catch {}
-}
 
 async function startSession(key) {
   const response = await fetch("/api/session", { method: "POST", headers: { "X-GW2-Key": key } });
@@ -30,6 +11,26 @@ async function startSession(key) {
   }
   apiKey = key;
   sessionId = data.session_id;
+  saveSessionId(sessionId);
+}
+
+// Load the chat of an earlier session in this tab. Returns false if the session has expired.
+async function resumeSession(key, id) {
+  const response = await fetch("/api/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-GW2-Key": key },
+    body: JSON.stringify({ session_id: id }),
+  });
+  if (!response.ok) return false;
+  const { messages } = await response.json();
+  apiKey = key;
+  sessionId = id;
+  for (const { role, text } of messages) {
+    if (role === "user") addMessage("user").textContent = text;
+    else render(addMessage("assistant"), text);
+  }
+  if (messages.length) $("message").placeholder = "";
+  return true;
 }
 
 function showChat() {
@@ -152,16 +153,21 @@ $("message").addEventListener("keydown", (e) => {
   }
 });
 
-$("forget").addEventListener("click", () => {
-  forgetKey();
-  location.reload();
-});
-
-const stored = loadKey();
-if (stored) {
-  startSession(stored).then(showChat).catch((err) => {
+async function resume(key) {
+  // Hide the key form while the chat loads so it does not flash on reload.
+  $("key-form").hidden = true;
+  try {
+    const id = loadSessionId();
+    if (!(id && await resumeSession(key, id).catch(() => false))) await startSession(key);
+    showChat();
+  } catch (err) {
     if (err.status === 401) forgetKey();
+    $("forget").hidden = !loadKey();
+    $("key-form").hidden = false;
     $("key-error").textContent = err.message;
     $("key-error").hidden = false;
-  });
+  }
 }
+
+const stored = loadKey();
+if (stored) resume(stored);

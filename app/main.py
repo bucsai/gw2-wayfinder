@@ -13,7 +13,7 @@ from pydantic_ai.exceptions import ContentFilterError, UsageLimitExceeded
 from app import agent, config
 from app.cache import Cache
 from app.gw2 import GW2Client, GW2Error
-from app.sessions import SessionStore, load_session
+from app.sessions import SessionStore, load_session, transcript
 from app.tools import Deps
 from app.wiki import WikiClient
 
@@ -46,8 +46,11 @@ async def security_headers(request: Request, call_next):
     return response
 
 
-class ChatRequest(BaseModel):
+class SessionRequest(BaseModel):
     session_id: str
+
+
+class ChatRequest(SessionRequest):
     message: str = Field(min_length=1, max_length=2000)
 
 
@@ -58,12 +61,24 @@ async def healthz():
 
 @app.post("/api/session")
 async def create_session(request: Request, x_gw2_key: str = Header()):
+    key = x_gw2_key.strip()
+    # Checked before the key is validated: starting a session makes several GW2 API calls.
+    if not request.app.state.sessions.allow("session", key):
+        raise HTTPException(429, "Too many new chats. Try again in a few minutes.")
     try:
-        session = await load_session(request.app.state.gw2, x_gw2_key.strip())
+        session = await load_session(request.app.state.gw2, key)
     except GW2Error:
         raise HTTPException(401, "The API key is invalid or lacks the account permission.") from None
     session_id = request.app.state.sessions.add(session)
     return {"session_id": session_id, "permissions": sorted(session.permissions)}
+
+
+@app.post("/api/history")
+async def history(request: Request, body: SessionRequest, x_gw2_key: str = Header()):
+    session = request.app.state.sessions.get(body.session_id, x_gw2_key.strip())
+    if session is None:
+        raise HTTPException(401, "Session expired.")
+    return {"messages": transcript(session)}
 
 
 @app.post("/api/chat")
@@ -73,18 +88,22 @@ async def chat(request: Request, body: ChatRequest, x_gw2_key: str = Header()):
     session = state.sessions.get(body.session_id, key)
     if session is None:
         raise HTTPException(401, "Session expired.")
-    if session.busy:
+    sessions = state.sessions
+    if sessions.running(key):
         raise HTTPException(409, "Wait for the current answer to finish.")
-    if not state.sessions.allow_message(key):
+    if sessions.server_busy():
+        raise HTTPException(503, "Wayfinder is busy right now. Try again in a minute.")
+    if not sessions.allow("message", key):
         raise HTTPException(429, "Too many messages. Try again in a few minutes.")
+    # Taken here, not in the stream, so a second request cannot slip in before the stream starts.
+    sessions.start_run(key)
     deps = Deps(state.gw2, state.wiki, key, session)
-    return StreamingResponse(_stream(deps, body.message), media_type="application/x-ndjson")
+    return StreamingResponse(_stream(deps, body.message, sessions), media_type="application/x-ndjson")
 
 
-async def _stream(deps: Deps, message: str):
+async def _stream(deps: Deps, message: str, sessions: SessionStore):
     """Stream NDJSON events. Text is sent per line so aliases can be restored to real names."""
     session = deps.session
-    session.busy = True
     buffer = ""
     try:
         async for kind, value in agent.run(deps, message):
@@ -106,7 +125,7 @@ async def _stream(deps: Deps, message: str):
         log.error("Chat failed: %s", type(e).__name__)
         yield _event(error="Something went wrong. Please try again.")
     finally:
-        session.busy = False
+        sessions.end_run(deps.key)
 
 
 def _event(**data) -> str:

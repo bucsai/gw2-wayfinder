@@ -41,6 +41,56 @@ def test_session_and_chat_restore_real_names(client):
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
 
 
+def test_history_returns_chat_with_real_names(client):
+    session_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
+    with agent_module.agent.override(model=FunctionModel(stream_function=reply)):
+        client.post(
+            "/api/chat",
+            headers={"X-GW2-Key": KEY},
+            json={"session_id": session_id, "message": "Where is Zoe Lightfoot?"},
+        )
+
+    response = client.post("/api/history", headers={"X-GW2-Key": KEY}, json={"session_id": session_id})
+    assert response.json() == {
+        "messages": [
+            {"role": "user", "text": "Where is Zoe Lightfoot?"},
+            {"role": "assistant", "text": "Hello Zoe Lightfoot\nof Knights of Ascalon"},
+        ]
+    }
+    response = client.post("/api/history", headers={"X-GW2-Key": "other"}, json={"session_id": session_id})
+    assert response.status_code == 401
+
+
+def test_new_sessions_are_rate_limited(client):
+    statuses = [client.post("/api/session", headers={"X-GW2-Key": KEY}).status_code for _ in range(6)]
+    assert statuses == [200] * 5 + [429]
+
+
+def test_one_answer_at_a_time_per_key(client):
+    sessions = client.app.state.sessions
+    session_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
+    other_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
+
+    def chat(sid):
+        with agent_module.agent.override(model=FunctionModel(stream_function=reply)):
+            return client.post("/api/chat", headers={"X-GW2-Key": KEY}, json={"session_id": sid, "message": "hi"})
+
+    sessions.start_run(KEY)
+    assert chat(other_id).status_code == 409  # another session with the same key
+    sessions.end_run(KEY)
+    assert chat(session_id).status_code == 200
+    assert not sessions.running(KEY)  # released when the stream ends
+
+
+def test_server_wide_cap_on_running_answers(client):
+    sessions = client.app.state.sessions
+    session_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
+    for i in range(5):
+        sessions.start_run(f"other-key-{i}")
+    response = client.post("/api/chat", headers={"X-GW2-Key": KEY}, json={"session_id": session_id, "message": "hi"})
+    assert response.status_code == 503
+
+
 def test_chat_requires_matching_key(client):
     session_id = client.post("/api/session", headers={"X-GW2-Key": KEY}).json()["session_id"]
     response = client.post(
