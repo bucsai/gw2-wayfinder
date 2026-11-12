@@ -16,6 +16,15 @@ class Cache:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires_at REAL)")
 
+    def close(self) -> None:
+        self.db.close()
+
+    def __enter__(self) -> Cache:
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
     def get(self, key: str):
         """Return the cached value, or MISS. A cached None is a valid value."""
         row = self.db.execute("SELECT value, expires_at FROM cache WHERE key = ?", (key,)).fetchone()

@@ -8,8 +8,9 @@ from app.gw2 import BASE_URL, GW2Client, GW2Error
 
 @pytest.fixture
 async def client():
-    async with httpx.AsyncClient() as http:
-        yield GW2Client(http, Cache(":memory:"))
+    with Cache(":memory:") as cache:
+        async with httpx.AsyncClient() as http:
+            yield GW2Client(http, cache)
 
 
 @respx.mock

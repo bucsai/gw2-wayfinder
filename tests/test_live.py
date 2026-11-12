@@ -36,25 +36,25 @@ SKIP = {"wiki_search", "wiki_page"}  # keep wiki traffic out of tests
 
 
 async def test_all_tools_with_real_key():
-    async with httpx.AsyncClient(timeout=30, headers={"User-Agent": USER_AGENT}) as http:
-        cache = Cache(":memory:")
-        session = await load_session(GW2Client(http, cache), KEY)
-        deps = Deps(GW2Client(http, cache), WikiClient(http, cache), KEY, session)
-        seen = []
+    with Cache(":memory:") as cache:
+        async with httpx.AsyncClient(timeout=30, headers={"User-Agent": USER_AGENT}) as http:
+            session = await load_session(GW2Client(http, cache), KEY)
+            deps = Deps(GW2Client(http, cache), WikiClient(http, cache), KEY, session)
+            seen = []
 
-        async def model(messages, info: AgentInfo):
-            seen.append(repr(messages))
-            if len(messages) == 1:
-                tools = [t.name for t in info.function_tools if t.name not in SKIP]
-                yield {
-                    i: DeltaToolCall(name, json.dumps(ARGS.get(name, {})), tool_call_id=str(i))
-                    for i, name in enumerate(tools)
-                }
-            else:
-                yield "done"
+            async def model(messages, info: AgentInfo):
+                seen.append(repr(messages))
+                if len(messages) == 1:
+                    tools = [t.name for t in info.function_tools if t.name not in SKIP]
+                    yield {
+                        i: DeltaToolCall(name, json.dumps(ARGS.get(name, {})), tool_call_id=str(i))
+                        for i, name in enumerate(tools)
+                    }
+                else:
+                    yield "done"
 
-        with agent_module.agent.override(model=FunctionModel(stream_function=model)):
-            [e async for e in agent_module.run(deps, "test")]
+            with agent_module.agent.override(model=FunctionModel(stream_function=model)):
+                [e async for e in agent_module.run(deps, "test")]
 
     results = {
         p.tool_name: json.loads(str(p.content))

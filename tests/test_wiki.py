@@ -20,8 +20,9 @@ PAGE = {
 @pytest.fixture
 async def wiki(monkeypatch):
     monkeypatch.setattr("app.wiki.MIN_INTERVAL", 0)
-    async with httpx.AsyncClient() as http:
-        yield WikiClient(http, Cache(":memory:"))
+    with Cache(":memory:") as cache:
+        async with httpx.AsyncClient() as http:
+            yield WikiClient(http, cache)
 
 
 @respx.mock

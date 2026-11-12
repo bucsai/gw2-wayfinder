@@ -28,12 +28,12 @@ SECURITY_HEADERS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with httpx.AsyncClient(timeout=20, headers={"User-Agent": config.USER_AGENT}) as http:
-        cache = Cache(config.DATA_DIR / "cache.db")
-        app.state.gw2 = GW2Client(http, cache)
-        app.state.wiki = WikiClient(http, cache)
-        app.state.sessions = SessionStore()
-        yield
+    with Cache(config.DATA_DIR / "cache.db") as cache:
+        async with httpx.AsyncClient(timeout=20, headers={"User-Agent": config.USER_AGENT}) as http:
+            app.state.gw2 = GW2Client(http, cache)
+            app.state.wiki = WikiClient(http, cache)
+            app.state.sessions = SessionStore()
+            yield
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)

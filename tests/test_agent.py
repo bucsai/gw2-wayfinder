@@ -53,11 +53,11 @@ def gw2_api(request: httpx.Request) -> httpx.Response:
 async def deps():
     with respx.mock:
         respx.route(url__startswith=BASE_URL).mock(side_effect=gw2_api)
-        async with httpx.AsyncClient() as http:
-            cache = Cache(":memory:")
-            gw2 = GW2Client(http, cache)
-            session = await load_session(gw2, KEY)
-            yield Deps(gw2, WikiClient(http, cache), KEY, session)
+        with Cache(":memory:") as cache:
+            async with httpx.AsyncClient() as http:
+                gw2 = GW2Client(http, cache)
+                session = await load_session(gw2, KEY)
+                yield Deps(gw2, WikiClient(http, cache), KEY, session)
 
 
 async def test_no_real_names_reach_the_model(deps):
