@@ -93,4 +93,4 @@ GW2 Wayfinder is an unofficial fan project, made under ArenaNet's [Content Use P
 
 Game information comes from the [Guild Wars 2 API](https://wiki.guildwars2.com/wiki/API:Main) and the [Guild Wars 2 Wiki](https://wiki.guildwars2.com). Wiki text is available under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html).
 
-The source code is available under the [MIT License](LICENSE).
+The source code is available under the [MIT License](LICENSE). The bundled [Cinzel](https://github.com/NDISCOVER/Cinzel) font is available under the [SIL Open Font License 1.1](static/vendor/fonts/OFL.txt).

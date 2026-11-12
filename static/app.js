@@ -132,6 +132,7 @@ $("chat-form").addEventListener("submit", async (e) => {
   const message = $("message").value.trim();
   if (!message || button.disabled) return;
   $("message").value = "";
+  $("message").placeholder = "";
   button.disabled = true;
   try {
     await send(message);
