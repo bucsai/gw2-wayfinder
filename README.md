@@ -1,4 +1,8 @@
-# GW2 Wayfinder
+<p align="center"><img src="static/logo.svg" alt="" width="96"></p>
+
+<h1 align="center">GW2 Wayfinder</h1>
+
+<p align="center"><a href="https://github.com/bucsai/gw2-wayfinder/actions/workflows/ci.yml"><img src="https://github.com/bucsai/gw2-wayfinder/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
 
 A web-based Guild Wars 2 assistant at [gw2wayfinder.com](https://gw2wayfinder.com). It answers questions about the game and about your account, using the official GW2 API and the official GW2 Wiki.
 
@@ -37,7 +41,14 @@ The agent is built with [Pydantic AI](https://ai.pydantic.dev). It has tools for
 
 Tools that need a permission the key lacks are hidden from the agent.
 
-Wiki results are cached without expiry. Wiki requests run one at a time, at most one per second, and stop for a while when the wiki is busy.
+The chat id is kept per browser tab, so a reload or a visit to the privacy page restores the chat while the server still has it.
+
+> [!NOTE]
+> Wiki results are cached without expiry. Wiki requests run one at a time, at most one per second, and stop for a while when the wiki is busy.
+
+## Usage limits
+
+Per API key, in any 10 minutes: at most 20 messages and 5 new chats. One answer per key runs at a time, and at most 5 across the server.
 
 ## Running locally
 
@@ -54,7 +65,7 @@ Open http://127.0.0.1:8000.
 Checks:
 
 ```sh
-uv run pytest                                # tests
+uv run pytest --cov                          # tests with coverage, fails under 80%
 uv run --env-file .env pytest tests/test_live.py  # tools against the real GW2 API, needs GW2_TEST_API_KEY
 uv run ruff check && uv run ruff format      # lint and format
 uv run pyright                               # type check
