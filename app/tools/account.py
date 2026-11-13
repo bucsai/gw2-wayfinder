@@ -58,7 +58,7 @@ async def list_characters(ctx: RunContext[Deps]) -> dict:
 
 @tool("account", "characters")
 async def character_details(ctx: RunContext[Deps], character: str) -> dict:
-    """Get a character's equipped gear and active build. character is the alias, e.g. Character_A."""
+    """Get a character's equipped gear, active build and skill bars. character is the alias, e.g. Character_A."""
     name = ctx.deps.session.pseudo.real(character)
     if name is None:
         return {"error": f"Unknown character {character!r}. Use list_characters."}
@@ -96,6 +96,21 @@ async def character_details(ctx: RunContext[Deps], character: str) -> dict:
             }
             for s in specs
         ]
+        bars = {k: build.get(k) or {} for k in ("skills", "aquatic_skills")}
+        skill_ids = [
+            i for bar in bars.values() for i in [bar.get("heal"), *bar.get("utilities", []), bar.get("elite")] if i
+        ]
+        skills = await gw2.get_many("/skills", skill_ids, STATIC_TTL)
+
+        def skill(id_):
+            return skills.get(id_, {}).get("name", id_) if id_ else None
+
+        for k, bar in bars.items():
+            result[k] = {
+                "heal": skill(bar.get("heal")),
+                "utilities": [skill(i) for i in bar.get("utilities", [])],
+                "elite": skill(bar.get("elite")),
+            }
     return result
 
 
