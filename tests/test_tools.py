@@ -105,3 +105,35 @@ async def test_character_details_returns_skill_bars(ctx):
         "utilities": ["Bulls Charge", None, None],
         "elite": None,
     }
+
+
+async def test_character_details_returns_legends_and_pets(ctx):
+    pseudo = Pseudonymizer()
+    alias = pseudo.alias("Real Name", "character")
+    ctx.deps.session = SimpleNamespace(pseudo=pseudo)
+    build = {
+        "specializations": [],
+        "legends": ["Legend2", "Legend5"],
+        "aquatic_legends": ["Legend2", None],
+        "pets": {"terrestrial": [1, 2], "aquatic": [3, None]},
+    }
+    respx.get(f"{BASE_URL}/characters/Real%20Name").respond(
+        200, json={"profession": "Revenant", "level": 80, "build_tabs": [{"is_active": True, "build": build}]}
+    )
+    respx.get(f"{BASE_URL}/legends").respond(200, json=[{"id": "Legend2", "swap": 20}, {"id": "Legend5", "swap": 50}])
+    respx.get(f"{BASE_URL}/skills").respond(
+        200, json=[{"id": 20, "name": "Legendary Assassin Stance"}, {"id": 50, "name": "Legendary Renegade Stance"}]
+    )
+    respx.get(f"{BASE_URL}/pets").respond(
+        200,
+        json=[
+            {"id": 1, "name": "Juvenile Jaguar"},
+            {"id": 2, "name": "Juvenile Wolf"},
+            {"id": 3, "name": "Juvenile Shark"},
+        ],
+    )
+    result = await character_details(ctx, alias)
+
+    assert result["legends"] == ["Legendary Assassin Stance", "Legendary Renegade Stance"]
+    assert result["aquatic_legends"] == ["Legendary Assassin Stance"]
+    assert result["pets"] == {"terrestrial": ["Juvenile Jaguar", "Juvenile Wolf"], "aquatic": ["Juvenile Shark"]}

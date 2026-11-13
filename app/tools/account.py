@@ -100,7 +100,10 @@ async def character_details(ctx: RunContext[Deps], character: str) -> dict:
         skill_ids = [
             i for bar in bars.values() for i in [bar.get("heal"), *bar.get("utilities", []), bar.get("elite")] if i
         ]
-        skills = await gw2.get_many("/skills", skill_ids, STATIC_TTL)
+        # Revenant only. Legends have no name; their swap skill carries it.
+        slots = {k: [i for i in build.get(k) or [] if i] for k in ("legends", "aquatic_legends")}
+        legends = await gw2.get_many("/legends", slots["legends"] + slots["aquatic_legends"], STATIC_TTL)
+        skills = await gw2.get_many("/skills", skill_ids + [g["swap"] for g in legends.values()], STATIC_TTL)
 
         def skill(id_):
             return skills.get(id_, {}).get("name", id_) if id_ else None
@@ -111,6 +114,15 @@ async def character_details(ctx: RunContext[Deps], character: str) -> dict:
                 "utilities": [skill(i) for i in bar.get("utilities", [])],
                 "elite": skill(bar.get("elite")),
             }
+        for k, ids in slots.items():
+            if ids:
+                result[k] = [skill(legends.get(i, {}).get("swap")) or i for i in ids]
+
+        # Ranger only.
+        pets = {k: [i for i in v if i] for k, v in (build.get("pets") or {}).items()}
+        pet_info = await gw2.get_many("/pets", [i for v in pets.values() for i in v], STATIC_TTL)
+        if pet_info:
+            result["pets"] = {k: [pet_info.get(i, {}).get("name", i) for i in v] for k, v in pets.items()}
     return result
 
 
