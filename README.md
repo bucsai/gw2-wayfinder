@@ -87,6 +87,9 @@ The cache is stored in the `wayfinder-data` volume, so it survives restarts and 
 
 For the tunnel, create a Cloudflare Tunnel, put its token in `.env`, and route the public hostname to `http://app:8000`.
 
+> [!IMPORTANT]
+> Run a single uvicorn worker. Chats and usage limits live in process memory, so extra workers or replicas would each have their own copy: chats would get lost between requests and the limits would multiply.
+
 ## Configuration
 
 | Variable | Default | Description |
