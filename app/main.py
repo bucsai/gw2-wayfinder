@@ -45,6 +45,8 @@ app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.update(SECURITY_HEADERS)
+    # Pages, scripts and styles must change together, so browsers check for a newer version before using their copy.
+    response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
