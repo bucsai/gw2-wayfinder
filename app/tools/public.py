@@ -1,6 +1,8 @@
+from collections import Counter
+
 from pydantic_ai import RunContext
 
-from app.tools import PRICE_TTL, STATIC_TTL, Deps, clean, coins, item_names, tool
+from app.tools import PRICE_TTL, STATIC_TTL, Deps, after_fees, clean, coins, item_names, tool
 
 WIKI_FETCHES_PER_RUN = 3
 WIKI_FETCHES_PER_SESSION = 20
@@ -33,24 +35,43 @@ async def get_items(ctx: RunContext[Deps], ids: list[int]) -> dict:
 
 
 @tool()
-async def get_prices(ctx: RunContext[Deps], ids: list[int]) -> dict:
-    """Get current Trading Post prices by item id. buy is the highest buy order, sell is the lowest listing."""
+async def get_prices(ctx: RunContext[Deps], ids: list[int], quantities: dict[int, int] | None = None) -> dict:
+    """Get current Trading Post prices by item id. buy is the highest buy order, sell is the lowest listing.
+
+    The _net values are what the player receives after the 15% Trading Post fees: buy_net when selling instantly
+    to the highest buy order, sell_net when listing at the lowest sell price. Pass quantities (item id to count)
+    to get the value of that many items and the totals over all items.
+    """
     prices = await ctx.deps.gw2.get_many("/commerce/prices", ids, PRICE_TTL)
     names = await item_names(ctx.deps.gw2, prices)
-    return {
-        "prices": [
-            {
-                "id": id_,
-                "name": names.get(id_),
-                "buy": coins(p["buys"]["unit_price"]),
-                "buy_orders": p["buys"]["quantity"],
-                "sell": coins(p["sells"]["unit_price"]),
-                "listings": p["sells"]["quantity"],
-            }
-            for id_, p in prices.items()
-        ],
-        "not_tradable": [i for i in ids if i not in prices],
-    }
+    totals: Counter[str] = Counter()
+    rows = []
+    for id_, p in prices.items():
+        buy, sell = p["buys"]["unit_price"], p["sells"]["unit_price"]
+        unit = {
+            "buy": buy,
+            "buy_net": after_fees(buy) if buy else 0,
+            "sell": sell,
+            "sell_net": after_fees(sell) if sell else 0,
+        }
+        row = {
+            "id": id_,
+            "name": names.get(id_),
+            **{k: coins(v) for k, v in unit.items()},
+            "buy_orders": p["buys"]["quantity"],
+            "listings": p["sells"]["quantity"],
+        }
+        if quantities and id_ in quantities:
+            count = quantities[id_]
+            row["quantity"] = count
+            for k, v in unit.items():
+                row[f"{k}_total"] = coins(v * count)
+                totals[k] += v * count
+        rows.append(row)
+    result = {"prices": rows, "not_tradable": [i for i in ids if i not in prices]}
+    if quantities:
+        result["totals"] = {k: coins(v) for k, v in totals.items()}
+    return result
 
 
 @tool()
