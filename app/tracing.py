@@ -1,7 +1,7 @@
 """Optional OpenTelemetry tracing of agent runs, for local debugging only.
 
 Traces contain prompts, tool arguments and tool results exactly as the model saw them: pseudonymized, but still
-account data. They are sent over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT, which docker-compose.dev.yml points at Jaeger.
+account data. They are sent over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT, which the dev compose profile points at Jaeger.
 The OpenTelemetry packages are dev dependencies, so this only works in the dev image.
 """
 

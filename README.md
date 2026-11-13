@@ -52,16 +52,16 @@ Per API key, in any 10 minutes: at most 20 messages and 5 new chats. One answer 
 
 ## Running
 
-Requirements: Docker. Copy `.env.example` to `.env` and fill in the keys. `.env` holds only secrets; each compose file sets the rest of its mode's settings.
+Requirements: Docker. Copy `.env.example` to `.env` and fill in the keys.
 
-There are two modes, each with its own compose file, project and cache volume, so they never touch each other:
+There are two modes, chosen with a compose profile. Both serve the app on http://127.0.0.1:8000 and share the cache volume, so run one at a time.
 
 | Mode | Command | What runs |
 | --- | --- | --- |
-| Dev | `docker compose -f docker-compose.dev.yml up --build --watch` | App on http://127.0.0.1:8000 with tracing, and Jaeger. Code changes are synced into the container. |
-| Prod | `docker compose up -d --build` | App behind the Cloudflare Tunnel, no tracing, no local port |
+| Dev | `docker compose --profile dev up --build --watch` | App with tracing, and Jaeger. Code changes are synced into the container. |
+| Prod | `docker compose --profile prod up -d --build` | App behind the Cloudflare Tunnel, no tracing |
 
-Stop dev with `docker compose -f docker-compose.dev.yml down`, prod with `docker compose down`. The cache survives restarts and rebuilds.
+Stop a mode with its profile, such as `docker compose --profile prod down`; without the profile, `down` leaves its containers running. The cache survives restarts and rebuilds.
 
 > [!WARNING]
 > `docker compose down -v` deletes the cache volume.
@@ -94,7 +94,7 @@ uv run pyright                               # type check
 
 ## Configuration
 
-Secrets go in `.env`. The compose files set the other settings for each mode, and [app/config.py](app/config.py) reads them with their defaults.
+Secrets go in `.env`. The other settings have defaults in [app/config.py](app/config.py), and the compose file sets them per mode.
 
 | Variable | Where | Description |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ Secrets go in `.env`. The compose files set the other settings for each mode, an
 | `GW2_TEST_API_KEY` | `.env` | GW2 API key for the live tests |
 | `WAYFINDER_MODEL` | default `anthropic:claude-haiku-5-5` | Pydantic AI model name |
 | `WAYFINDER_DATA_DIR` | Dockerfile: `/data` | Directory of the SQLite cache |
-| `WAYFINDER_TRACING` | dev compose file: `1` | `1` sends traces to `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| `WAYFINDER_TRACING` | `1` in the dev profile | `1` sends traces to `OTEL_EXPORTER_OTLP_ENDPOINT` |
 
 ## Legal
 
