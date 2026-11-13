@@ -11,7 +11,9 @@ async function startSession(key) {
   }
   apiKey = key;
   sessionId = data.session_id;
-  saveSessionId(sessionId);
+  saveSessionId(key, sessionId);
+  setKeyLabel(key, data.account);
+  return data;
 }
 
 // Load the chat of an earlier session in this tab. Returns false if the session has expired.
@@ -22,9 +24,10 @@ async function resumeSession(key, id) {
     body: JSON.stringify({ session_id: id }),
   });
   if (!response.ok) return false;
-  const { messages } = await response.json();
+  const { account, messages } = await response.json();
   apiKey = key;
   sessionId = id;
+  setKeyLabel(key, account);
   for (const { role, text } of messages) {
     if (role === "user") addMessage("user").textContent = text;
     else render(addMessage("assistant"), text);
@@ -36,7 +39,7 @@ async function resumeSession(key, id) {
 function showChat() {
   $("key-form").hidden = true;
   $("chat").hidden = false;
-  $("forget").hidden = false;
+  renderKeys();
   $("message").focus();
 }
 
@@ -118,8 +121,9 @@ $("key-form").addEventListener("submit", async (e) => {
   const key = $("key").value.trim();
   $("key-error").hidden = true;
   try {
-    await startSession(key);
-    saveKey(key, $("remember").checked);
+    const { account } = await startSession(key);
+    saveKey(key, account, $("remember").checked);
+    history.replaceState(null, "", "/");
     showChat();
   } catch (err) {
     $("key-error").textContent = err.message;
@@ -157,17 +161,19 @@ async function resume(key) {
   // Hide the key form while the chat loads so it does not flash on reload.
   $("key-form").hidden = true;
   try {
-    const id = loadSessionId();
+    const id = loadSessionId(key);
     if (!(id && await resumeSession(key, id).catch(() => false))) await startSession(key);
     showChat();
   } catch (err) {
-    if (err.status === 401) forgetKey();
-    $("forget").hidden = !loadKey();
+    if (err.status === 401) removeKey(key);
+    renderKeys();
     $("key-form").hidden = false;
     $("key-error").textContent = err.message;
     $("key-error").hidden = false;
   }
 }
 
+// "?add" comes from "Add a key" in the header menu: show the key form even if a key is stored.
 const stored = loadKey();
-if (stored) resume(stored);
+if (new URLSearchParams(location.search).has("add")) $("cancel-add").hidden = !stored;
+else if (stored) resume(stored);
