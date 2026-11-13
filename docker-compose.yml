@@ -1,3 +1,4 @@
+# Production: the app behind a Cloudflare Tunnel. Local development uses docker-compose.dev.yml.
 services:
   app:
     build: .
@@ -5,8 +6,6 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     volumes:
       - wayfinder-data:/data
-    ports:
-      - "127.0.0.1:8000:8000"
     restart: unless-stopped
 
   tunnel:
@@ -17,17 +16,6 @@ services:
     depends_on:
       - app
     restart: unless-stopped
-    profiles:
-      - tunnel
-
-  # Trace viewer for local debugging, see WAYFINDER_TRACING in the README.
-  jaeger:
-    image: jaegertracing/jaeger:2.22.0
-    ports:
-      - "127.0.0.1:16686:16686" # web UI
-      - "127.0.0.1:4318:4318" # OTLP over HTTP
-    profiles:
-      - tracing
 
 volumes:
   wayfinder-data:

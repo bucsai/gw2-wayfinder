@@ -1,8 +1,8 @@
 """Optional OpenTelemetry tracing of agent runs, for local debugging only.
 
 Traces contain prompts, tool arguments and tool results exactly as the model saw them: pseudonymized, but still
-account data. They are sent over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT (default http://localhost:4318), e.g. Jaeger.
-The OpenTelemetry packages are dev dependencies, so this only works in a local dev environment.
+account data. They are sent over OTLP to OTEL_EXPORTER_OTLP_ENDPOINT, which docker-compose.dev.yml points at Jaeger.
+The OpenTelemetry packages are dev dependencies, so this only works in the dev image.
 """
 
 from pydantic_ai import Agent
