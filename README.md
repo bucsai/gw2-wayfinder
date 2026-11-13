@@ -39,50 +39,50 @@ The agent is built with [Pydantic AI](https://ai.pydantic.dev). It has tools for
 - Game data: items, Trading Post prices, recipes, achievements
 - Wiki: search and page reading
 
-Tools that need a permission the key lacks are hidden from the agent.
+Tools that need a permission the key lacks are hidden from the agent. A few more details:
 
-The chat id is kept per browser tab, so a reload or a visit to the privacy page restores the chat while the server still has it.
+- The chat id is kept per browser tab, so a reload or a visit to the privacy page restores the chat while the server still has it.
+- Wiki results are cached without expiry. Wiki requests run one at a time, at most one per second, and stop for a while when the wiki is busy.
+- Usage limits per API key, in any 10 minutes: at most 20 messages and 5 new chats. One answer per key runs at a time, and at most 5 across the server.
 
-> [!NOTE]
-> Wiki results are cached without expiry. Wiki requests run one at a time, at most one per second, and stop for a while when the wiki is busy.
+## Running it yourself
 
-## Usage limits
+You need Docker, and [uv](https://docs.astral.sh/uv/) for the checks.
 
-Per API key, in any 10 minutes: at most 20 messages and 5 new chats. One answer per key runs at a time, and at most 5 across the server.
+### Setup
 
-## Running
+Copy `.env.example` to `.env` and fill in the keys. `.env` holds only secrets; the other settings have defaults in [app/config.py](app/config.py), and the compose file sets them per mode.
 
-Requirements: Docker. Copy `.env.example` to `.env` and fill in the keys.
+| Variable | Set in | Description |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | `.env` | Anthropic API key |
+| `CLOUDFLARE_TUNNEL_TOKEN` | `.env` | Cloudflare Tunnel token, prod only |
+| `GW2_TEST_API_KEY` | `.env` | GW2 API key for the live tests |
+| `WAYFINDER_MODEL` | default `anthropic:claude-haiku-5-5` | Pydantic AI model name |
+| `WAYFINDER_DATA_DIR` | Dockerfile: `/data` | Directory of the SQLite cache |
+| `WAYFINDER_TRACING` | `1` in the dev profile | `1` sends traces to `OTEL_EXPORTER_OTLP_ENDPOINT` |
 
-There are two modes, chosen with a compose profile. Both serve the app on http://127.0.0.1:8000 and share the cache volume, so run one at a time.
+### Dev and prod
 
-| Mode | Command | What runs |
+There are two modes, chosen with a compose profile:
+
+| Mode | Start | What runs |
 | --- | --- | --- |
 | Dev | `docker compose --profile dev up --build --watch` | App with tracing, and Jaeger. Code changes are synced into the container. |
 | Prod | `docker compose --profile prod up -d --build` | App behind the Cloudflare Tunnel, no tracing |
 
-Stop a mode with its profile, such as `docker compose --profile prod down`; without the profile, `down` leaves its containers running. The cache survives restarts and rebuilds.
+Both serve the app on http://127.0.0.1:8000 and share the cache volume, so run one at a time. Stop a mode with its profile, such as `docker compose --profile dev down`; a plain `down` leaves its containers running. The cache survives restarts and rebuilds, but `down -v` deletes it.
 
-> [!WARNING]
-> `docker compose down -v` deletes the cache volume.
+In dev, open the traces at http://127.0.0.1:16686 (service `gw2-wayfinder`). They show what the agent did: prompts, tool calls with their arguments and results, token usage and timing. Like the model, they see aliases and never the API key, but they still contain account data, so tracing stays out of the prod image.
 
-### Tracing
-
-Dev mode sends OpenTelemetry traces of agent runs (prompts, tool calls with their arguments and results, token usage, timing) to [Jaeger](https://www.jaegertracing.io/). Open them at http://127.0.0.1:16686 (service `gw2-wayfinder`).
-
-> [!WARNING]
-> Traces show what the model saw: aliases instead of names, and no API key, but still account data. The OpenTelemetry packages are dev dependencies, so the prod image can't send traces.
-
-### Tunnel
-
-Create a Cloudflare Tunnel, put its token in `.env`, and route the public hostname to `http://app:8000`.
+For prod, create a Cloudflare Tunnel, put its token in `.env`, and route the public hostname to `http://app:8000`.
 
 > [!IMPORTANT]
 > Run a single uvicorn worker. Chats and usage limits live in process memory, so extra workers or replicas would each have their own copy: chats would get lost between requests and the limits would multiply.
 
 ### Checks
 
-Checks run with [uv](https://docs.astral.sh/uv/), the same way as in CI:
+The checks run with uv, the same way as in CI:
 
 ```sh
 uv sync
@@ -91,19 +91,6 @@ uv run --env-file .env pytest tests/test_live.py  # tools against the real GW2 A
 uv run ruff check && uv run ruff format      # lint and format
 uv run pyright                               # type check
 ```
-
-## Configuration
-
-Secrets go in `.env`. The other settings have defaults in [app/config.py](app/config.py), and the compose file sets them per mode.
-
-| Variable | Where | Description |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | `.env` | Anthropic API key |
-| `CLOUDFLARE_TUNNEL_TOKEN` | `.env` | Cloudflare Tunnel token, prod only |
-| `GW2_TEST_API_KEY` | `.env` | GW2 API key for the live tests |
-| `WAYFINDER_MODEL` | default `anthropic:claude-haiku-5-5` | Pydantic AI model name |
-| `WAYFINDER_DATA_DIR` | Dockerfile: `/data` | Directory of the SQLite cache |
-| `WAYFINDER_TRACING` | `1` in the dev profile | `1` sends traces to `OTEL_EXPORTER_OTLP_ENDPOINT` |
 
 ## Legal
 
