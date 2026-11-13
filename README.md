@@ -86,7 +86,7 @@ The checks run with uv, the same way as in CI:
 
 ```sh
 uv sync
-uv run pytest --cov                          # tests with coverage, fails under 80%
+uv run pytest --cov                          # tests with coverage, fails under 85%
 uv run --env-file .env pytest tests/test_live.py  # tools against the real GW2 API, needs GW2_TEST_API_KEY
 uv run ruff check && uv run ruff format      # lint and format
 uv run pyright                               # type check
