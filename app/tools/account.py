@@ -58,7 +58,7 @@ async def list_characters(ctx: RunContext[Deps]) -> dict:
 
 @tool("account", "characters")
 async def character_details(ctx: RunContext[Deps], character: str) -> dict:
-    """Get a character's equipped gear and active build. character is the alias, e.g. Character_A."""
+    """Get a character's equipped gear, active build and skill bars. character is the alias, e.g. Character_A."""
     name = ctx.deps.session.pseudo.real(character)
     if name is None:
         return {"error": f"Unknown character {character!r}. Use list_characters."}
@@ -96,6 +96,33 @@ async def character_details(ctx: RunContext[Deps], character: str) -> dict:
             }
             for s in specs
         ]
+        bars = {k: build.get(k) or {} for k in ("skills", "aquatic_skills")}
+        skill_ids = [
+            i for bar in bars.values() for i in [bar.get("heal"), *bar.get("utilities", []), bar.get("elite")] if i
+        ]
+        # Revenant only. Legends have no name; their swap skill carries it.
+        slots = {k: [i for i in build.get(k) or [] if i] for k in ("legends", "aquatic_legends")}
+        legends = await gw2.get_many("/legends", slots["legends"] + slots["aquatic_legends"], STATIC_TTL)
+        skills = await gw2.get_many("/skills", skill_ids + [g["swap"] for g in legends.values()], STATIC_TTL)
+
+        def skill(id_):
+            return skills.get(id_, {}).get("name", id_) if id_ else None
+
+        for k, bar in bars.items():
+            result[k] = {
+                "heal": skill(bar.get("heal")),
+                "utilities": [skill(i) for i in bar.get("utilities", [])],
+                "elite": skill(bar.get("elite")),
+            }
+        for k, ids in slots.items():
+            if ids:
+                result[k] = [skill(legends.get(i, {}).get("swap")) or i for i in ids]
+
+        # Ranger only.
+        pets = {k: [i for i in v if i] for k, v in (build.get("pets") or {}).items()}
+        pet_info = await gw2.get_many("/pets", [i for v in pets.values() for i in v], STATIC_TTL)
+        if pet_info:
+            result["pets"] = {k: [pet_info.get(i, {}).get("name", i) for i in v] for k, v in pets.items()}
     return result
 
 

@@ -5,10 +5,11 @@ import httpx
 import pytest
 import respx
 
+from app.anonymize import Pseudonymizer
 from app.cache import Cache
 from app.gw2 import BASE_URL, GW2Client
 from app.tools import after_fees
-from app.tools.account import trading_post_orders
+from app.tools.account import character_details, trading_post_orders
 from app.tools.public import get_prices
 
 ITEMS = [{"id": 1, "name": "Mystic Coin"}, {"id": 2, "name": "Glob of Ectoplasm"}]
@@ -75,3 +76,64 @@ async def test_trading_post_orders_adds_totals(ctx):
     assert result["buy_orders_total"] == "3g 80s"
     assert result["listings_total"] == "5g 20s"
     assert result["listings_net_total"] == "4g 68s"  # only the 10% exchange fee is still due
+
+
+async def test_character_details_returns_skill_bars(ctx):
+    pseudo = Pseudonymizer()
+    alias = pseudo.alias("Real Name", "character")
+    ctx.deps.session = SimpleNamespace(pseudo=pseudo)
+    build = {
+        "specializations": [],
+        "skills": {"heal": 10, "utilities": [11, 12, None], "elite": 13},
+        "aquatic_skills": {"heal": 10, "utilities": [11, None, None], "elite": None},
+    }
+    respx.get(f"{BASE_URL}/characters/Real%20Name").respond(
+        200,
+        json={"profession": "Warrior", "level": 80, "build_tabs": [{"is_active": True, "build": build}]},
+    )
+    names = {10: "Healing Signet", 11: "Bulls Charge", 12: "Shake It Off!", 13: "Signet of Rage"}
+    respx.get(f"{BASE_URL}/skills").respond(200, json=[{"id": i, "name": n} for i, n in names.items()])
+    result = await character_details(ctx, alias)
+
+    assert result["skills"] == {
+        "heal": "Healing Signet",
+        "utilities": ["Bulls Charge", "Shake It Off!", None],
+        "elite": "Signet of Rage",
+    }
+    assert result["aquatic_skills"] == {
+        "heal": "Healing Signet",
+        "utilities": ["Bulls Charge", None, None],
+        "elite": None,
+    }
+
+
+async def test_character_details_returns_legends_and_pets(ctx):
+    pseudo = Pseudonymizer()
+    alias = pseudo.alias("Real Name", "character")
+    ctx.deps.session = SimpleNamespace(pseudo=pseudo)
+    build = {
+        "specializations": [],
+        "legends": ["Legend2", "Legend5"],
+        "aquatic_legends": ["Legend2", None],
+        "pets": {"terrestrial": [1, 2], "aquatic": [3, None]},
+    }
+    respx.get(f"{BASE_URL}/characters/Real%20Name").respond(
+        200, json={"profession": "Revenant", "level": 80, "build_tabs": [{"is_active": True, "build": build}]}
+    )
+    respx.get(f"{BASE_URL}/legends").respond(200, json=[{"id": "Legend2", "swap": 20}, {"id": "Legend5", "swap": 50}])
+    respx.get(f"{BASE_URL}/skills").respond(
+        200, json=[{"id": 20, "name": "Legendary Assassin Stance"}, {"id": 50, "name": "Legendary Renegade Stance"}]
+    )
+    respx.get(f"{BASE_URL}/pets").respond(
+        200,
+        json=[
+            {"id": 1, "name": "Juvenile Jaguar"},
+            {"id": 2, "name": "Juvenile Wolf"},
+            {"id": 3, "name": "Juvenile Shark"},
+        ],
+    )
+    result = await character_details(ctx, alias)
+
+    assert result["legends"] == ["Legendary Assassin Stance", "Legendary Renegade Stance"]
+    assert result["aquatic_legends"] == ["Legendary Assassin Stance"]
+    assert result["pets"] == {"terrestrial": ["Juvenile Jaguar", "Juvenile Wolf"], "aquatic": ["Juvenile Shark"]}
