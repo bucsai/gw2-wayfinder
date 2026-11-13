@@ -1,13 +1,21 @@
+# Two modes, chosen with a profile; both use the same cache volume. See Running in the README.
+#   docker compose --profile dev up --build --watch   app with tracing to Jaeger, code changes synced in
+#   docker compose --profile prod up -d --build       app behind the Cloudflare Tunnel, no tracing
+
+x-app: &app
+  environment:
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  volumes:
+    - wayfinder-data:/data
+  ports:
+    - "127.0.0.1:8000:8000"
+
 services:
   app:
+    <<: *app
     build: .
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-    volumes:
-      - wayfinder-data:/data
-    ports:
-      - "127.0.0.1:8000:8000"
     restart: unless-stopped
+    profiles: [prod]
 
   tunnel:
     image: cloudflare/cloudflared:2026.10.7
@@ -17,17 +25,37 @@ services:
     depends_on:
       - app
     restart: unless-stopped
-    profiles:
-      - tunnel
+    profiles: [prod]
 
-  # Trace viewer for local debugging, see WAYFINDER_TRACING in the README.
+  app-dev:
+    <<: *app
+    build:
+      context: .
+      target: dev
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      WAYFINDER_TRACING: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    depends_on:
+      - jaeger
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./app
+          target: /app/app
+        - action: sync
+          path: ./static
+          target: /app/static
+        - action: rebuild
+          path: uv.lock
+    profiles: [dev]
+
+  # Trace viewer, see Tracing in the README.
   jaeger:
     image: jaegertracing/jaeger:2.22.0
     ports:
-      - "127.0.0.1:16686:16686" # web UI
-      - "127.0.0.1:4318:4318" # OTLP over HTTP
-    profiles:
-      - tracing
+      - "127.0.0.1:16686:16686"
+    profiles: [dev]
 
 volumes:
   wayfinder-data:
