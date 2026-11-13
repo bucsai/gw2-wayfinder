@@ -57,7 +57,7 @@ def test_history_returns_chat_with_real_names(client):
         "messages": [
             {"role": "user", "text": "Where is Zoe Lightfoot?"},
             {"role": "assistant", "text": "Hello Zoe Lightfoot\nof Knights of Ascalon"},
-        ]
+        ],
     }
     response = client.post("/api/history", headers={"X-GW2-Key": "other"}, json={"session_id": session_id})
     assert response.status_code == 401
