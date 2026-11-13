@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from pydantic_ai.exceptions import ContentFilterError, UsageLimitExceeded
 
-from app import agent, config
+from app import agent, config, tracing
 from app.cache import Cache
 from app.gw2 import GW2Client, GW2Error
 from app.sessions import SessionStore, load_session, transcript
@@ -28,6 +28,8 @@ SECURITY_HEADERS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if config.TRACING:
+        tracing.setup()
     with Cache(config.DATA_DIR / "cache.db") as cache:
         async with httpx.AsyncClient(timeout=20, headers={"User-Agent": config.USER_AGENT}) as http:
             app.state.gw2 = GW2Client(http, cache)

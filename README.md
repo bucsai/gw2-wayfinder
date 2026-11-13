@@ -62,7 +62,21 @@ uv run uvicorn app.main:app --reload
 
 Open http://127.0.0.1:8000.
 
-Checks:
+### Tracing
+
+To see what the agent did (prompts, tool calls with their arguments and results, token usage, timing), send OpenTelemetry traces to a local [Jaeger](https://www.jaegertracing.io/):
+
+```sh
+docker compose --profile tracing up -d jaeger
+WAYFINDER_TRACING=1 uv run uvicorn app.main:app --reload
+```
+
+Open the traces at http://127.0.0.1:16686 (service `gw2-wayfinder`).
+
+> [!WARNING]
+> Traces show what the model saw: aliases instead of names, and no API key, but still account data. Use tracing only locally. The OpenTelemetry packages are dev dependencies, so it doesn't work in the Docker image.
+
+### Checks
 
 ```sh
 uv run pytest --cov                          # tests with coverage, fails under 80%
@@ -98,6 +112,7 @@ For the tunnel, create a Cloudflare Tunnel, put its token in `.env`, and route t
 | `CLOUDFLARE_TUNNEL_TOKEN` | | Cloudflare Tunnel token, only for the `tunnel` profile |
 | `WAYFINDER_MODEL` | `anthropic:claude-haiku-5-5` | Pydantic AI model name |
 | `WAYFINDER_DATA_DIR` | `data` (`/data` in Docker) | Directory of the SQLite cache |
+| `WAYFINDER_TRACING` | | `1` sends traces to `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4318`), local only |
 
 ## Legal
 

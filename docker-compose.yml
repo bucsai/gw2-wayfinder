@@ -20,5 +20,14 @@ services:
     profiles:
       - tunnel
 
+  # Trace viewer for local debugging, see WAYFINDER_TRACING in the README.
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    ports:
+      - "127.0.0.1:16686:16686" # web UI
+      - "127.0.0.1:4318:4318" # OTLP over HTTP
+    profiles:
+      - tracing
+
 volumes:
   wayfinder-data:

@@ -3,6 +3,10 @@ import json
 import httpx
 import pytest
 import respx
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from pydantic_ai import InstrumentationSettings
 from pydantic_ai.messages import ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 
@@ -60,7 +64,12 @@ async def deps():
                 yield Deps(gw2, WikiClient(http, cache), KEY, session)
 
 
-async def test_no_real_names_reach_the_model(deps):
+async def test_no_real_names_reach_the_model(deps, monkeypatch):
+    # Traces (app/tracing.py) record what the model sees, so they must not contain real names either.
+    spans = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(spans))
+    monkeypatch.setattr(agent_module.agent, "instrument", InstrumentationSettings(tracer_provider=provider))
     seen = []
 
     async def model(messages, info: AgentInfo):
@@ -91,6 +100,12 @@ async def test_no_real_names_reach_the_model(deps):
     # 10 in the bank + 3 in Character_A's bags.
     assert '"total_per_item": [{"item": "Mystic Coin", "id": 2, "count": 13}]' in seen[1]
     assert deps.session.history
+
+    traced = repr([(s.attributes, [e.attributes for e in s.events]) for s in spans.get_finished_spans()])
+    assert "find_in_account" in traced
+    assert "total_matches" in traced  # a tool result
+    for name in REAL_NAMES:
+        assert name.lower() not in traced.lower(), name
 
 
 async def test_tools_follow_key_permissions(deps):
