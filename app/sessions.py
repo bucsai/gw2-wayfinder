@@ -24,6 +24,7 @@ def key_hash(key: str) -> str:
 @dataclass
 class Session:
     key_hash: str
+    account: str  # real account name, shown only to the user
     permissions: set[str]
     pseudo: Pseudonymizer
     guilds: dict[str, str]  # guild id -> real name
@@ -47,7 +48,7 @@ async def load_session(gw2: GW2Client, key: str) -> Session:
         guild = await gw2.get(f"/guild/{guild_id}", key=key)
         guilds[guild_id] = guild["name"]
         pseudo.alias(guild["name"], "guild")
-    return Session(key_hash(key), permissions, pseudo, guilds)
+    return Session(key_hash(key), account["name"], permissions, pseudo, guilds)
 
 
 def transcript(session: Session) -> list[dict[str, str]]:
