@@ -62,6 +62,17 @@ def coins(copper: int) -> str:
     return " ".join(f"{v}{u}" for v, u in ((gold, "g"), (silver, "s"), (copper, "c")) if v) or "0c"
 
 
+def after_fees(price: int, listed: bool = False) -> int:
+    """What the seller receives for one item at price after the Trading Post fees.
+
+    The 5% listing fee is paid when listing, the 10% exchange fee when it sells.
+    Each fee is rounded half up and at least 1 copper.
+    listed means the listing fee was already paid.
+    """
+    listing_fee = 0 if listed else max(1, (price * 5 + 50) // 100)
+    return max(0, price - listing_fee - max(1, (price * 10 + 50) // 100))
+
+
 def clean(text: str | None) -> str:
     """Remove GW2 markup such as <c=@flavor>."""
     return re.sub(r"<[^>]+>", "", text or "")

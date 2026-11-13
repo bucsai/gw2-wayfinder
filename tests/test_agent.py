@@ -88,6 +88,8 @@ async def test_no_real_names_reach_the_model(deps):
     # Item names that contain a character name are hidden too.
     assert '"item": "Character_B' in seen[1]
     assert "Mystic Coin" in seen[1]
+    # 10 in the bank + 3 in Character_A's bags.
+    assert '"total_per_item": [{"item": "Mystic Coin", "id": 2, "count": 13}]' in seen[1]
     assert deps.session.history
 
 

@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from pydantic_ai import RunContext
 
-from app.tools import STATIC_TTL, Deps, coins, item_names, tool
+from app.tools import STATIC_TTL, Deps, after_fees, coins, item_names, tool
 
 
 async def _get(ctx: RunContext[Deps], path: str, params: dict | None = None):
@@ -119,7 +119,7 @@ async def wallet(ctx: RunContext[Deps]) -> dict:
 async def find_in_account(ctx: RunContext[Deps], name_contains: str = "", item_ids: list[int] | None = None) -> dict:
     """Find items the player owns in the bank, material storage, shared inventory and character bags.
 
-    Match by part of the item name, by item ids, or both.
+    Match by part of the item name, by item ids, or both. total_per_item adds up the counts over all locations.
     """
     counts: Counter = Counter()
 
@@ -144,12 +144,22 @@ async def find_in_account(ctx: RunContext[Deps], name_contains: str = "", item_i
         for (id_, location), count in counts.items()
         if (item_ids and id_ in item_ids) or (needle and needle in names.get(id_, "").lower())
     ]
-    return {"matches": sorted(matches, key=lambda m: -m["count"])[:50], "total_matches": len(matches)}
+    totals: Counter = Counter()
+    for m in matches:
+        totals[(m["item"], m["id"])] += m["count"]
+    return {
+        "matches": sorted(matches, key=lambda m: -m["count"])[:50],
+        "total_matches": len(matches),
+        "total_per_item": [{"item": item, "id": id_, "count": n} for (item, id_), n in totals.most_common(50)],
+    }
 
 
 @tool("account", "tradingpost")
 async def trading_post_orders(ctx: RunContext[Deps]) -> dict:
-    """Get the player's current Trading Post buy orders, listings and items waiting for pickup."""
+    """Get the player's current Trading Post buy orders, listings and items waiting for pickup.
+
+    listings_net_total is what the listings pay out after the 10% exchange fee (the listing fee is already paid).
+    """
     buys = await _get(ctx, "/commerce/transactions/current/buys")
     sells = await _get(ctx, "/commerce/transactions/current/sells")
     delivery = await _get(ctx, "/commerce/delivery")
@@ -157,13 +167,21 @@ async def trading_post_orders(ctx: RunContext[Deps]) -> dict:
 
     def orders(transactions):
         return [
-            {"item": names.get(t["item_id"], t["item_id"]), "price": coins(t["price"]), "quantity": t["quantity"]}
+            {
+                "item": names.get(t["item_id"], t["item_id"]),
+                "price": coins(t["price"]),
+                "quantity": t["quantity"],
+                "total": coins(t["price"] * t["quantity"]),
+            }
             for t in transactions
         ]
 
     return {
         "buy_orders": orders(buys),
+        "buy_orders_total": coins(sum(t["price"] * t["quantity"] for t in buys)),
         "listings": orders(sells),
+        "listings_total": coins(sum(t["price"] * t["quantity"] for t in sells)),
+        "listings_net_total": coins(sum(after_fees(t["price"], listed=True) * t["quantity"] for t in sells)),
         "pickup_coins": coins(delivery["coins"]),
         "pickup_items": [{"item": names.get(i["id"], i["id"]), "count": i["count"]} for i in delivery["items"]],
     }
