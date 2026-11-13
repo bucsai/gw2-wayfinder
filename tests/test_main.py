@@ -30,6 +30,7 @@ async def reply(messages, info: AgentInfo):
 def test_session_and_chat_restore_real_names(client):
     response = client.post("/api/session", headers={"X-GW2-Key": KEY})
     assert response.status_code == 200
+    assert response.json()["account"] == "Wanderer.1234"
     session_id = response.json()["session_id"]
 
     with agent_module.agent.override(model=FunctionModel(stream_function=reply)):
@@ -52,10 +53,11 @@ def test_history_returns_chat_with_real_names(client):
 
     response = client.post("/api/history", headers={"X-GW2-Key": KEY}, json={"session_id": session_id})
     assert response.json() == {
+        "account": "Wanderer.1234",
         "messages": [
             {"role": "user", "text": "Where is Zoe Lightfoot?"},
             {"role": "assistant", "text": "Hello Zoe Lightfoot\nof Knights of Ascalon"},
-        ]
+        ],
     }
     response = client.post("/api/history", headers={"X-GW2-Key": "other"}, json={"session_id": session_id})
     assert response.status_code == 401
@@ -108,3 +110,4 @@ def test_invalid_key_is_rejected(client):
 def test_static_page(client):
     assert "GW2 Wayfinder" in client.get("/").text
     assert "Privacy notice" in client.get("/privacy.html").text
+    assert client.get("/site.js").headers["Cache-Control"] == "no-cache"

@@ -16,7 +16,13 @@
   <header>
     <h1><img src="logo.svg" alt="">GW2 Wayfinder</h1>
     <div class="actions">
-      <button id="forget" class="link" hidden>Forget key</button>
+      <details id="keys" hidden>
+        <summary>Manage keys</summary>
+        <div class="menu">
+          <ul id="key-list"></ul>
+          <button type="button" id="add-key" class="link">Add a key</button>
+        </div>
+      </details>
       <button id="theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg></button>
     </div>
   </header>
@@ -28,8 +34,11 @@
         Select the permissions you want Wayfinder to use, for example account, characters, inventories, wallet and progression.</p>
       <label for="key">API key</label>
       <input id="key" type="password" autocomplete="off" required>
-      <label class="check"><input id="remember" type="checkbox"> Remember my key on this device</label>
-      <button type="submit">Start</button>
+      <label class="check"><input id="remember" type="checkbox"> Remember this key on this device</label>
+      <div class="buttons">
+        <button type="submit">Start</button>
+        <a id="cancel-add" href="/" hidden>Cancel</a>
+      </div>
       <p class="note">Your key stays in your browser and is sent only to this server, which uses it to read your account from the GW2 API.
         Account, character and guild names are replaced with aliases before they reach the AI model. See the <a href="privacy.html">privacy notice</a>.</p>
       <p id="key-error" class="error" hidden></p>

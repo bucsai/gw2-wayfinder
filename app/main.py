@@ -45,6 +45,8 @@ app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.update(SECURITY_HEADERS)
+    # Pages, scripts and styles must change together, so browsers check for a newer version before using their copy.
+    response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
@@ -72,7 +74,7 @@ async def create_session(request: Request, x_gw2_key: str = Header()):
     except GW2Error:
         raise HTTPException(401, "The API key is invalid or lacks the account permission.") from None
     session_id = request.app.state.sessions.add(session)
-    return {"session_id": session_id, "permissions": sorted(session.permissions)}
+    return {"session_id": session_id, "account": session.account, "permissions": sorted(session.permissions)}
 
 
 @app.post("/api/history")
@@ -80,7 +82,7 @@ async def history(request: Request, body: SessionRequest, x_gw2_key: str = Heade
     session = request.app.state.sessions.get(body.session_id, x_gw2_key.strip())
     if session is None:
         raise HTTPException(401, "Session expired.")
-    return {"messages": transcript(session)}
+    return {"account": session.account, "messages": transcript(session)}
 
 
 @app.post("/api/chat")
